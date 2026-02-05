@@ -176,9 +176,9 @@ public static class LegalityCheckResultCodeExtensions
 
             // Moves
             MoveEvoFCombination_0 => localization.MoveEvoFCombination_0,
-            MovePPExpectHealed_0 => localization.MovePPExpectHealed_0,
-            MovePPTooHigh_0 => localization.MovePPTooHigh_0,
-            MovePPUpsTooHigh_0 => localization.MovePPUpsTooHigh_0,
+            MovePPExpectHealed_01 => localization.MovePPExpectHealed_01,
+            MovePPTooHigh_01 => localization.MovePPTooHigh_01,
+            MovePPUpsTooHigh_01 => localization.MovePPUpsTooHigh_01,
             MoveShopMasterInvalid_0 => localization.MoveShopMasterInvalid_0,
             MoveShopMasterNotLearned_0 => localization.MoveShopMasterNotLearned_0,
             MoveShopPurchaseInvalid_0 => localization.MoveShopPurchaseInvalid_0,
