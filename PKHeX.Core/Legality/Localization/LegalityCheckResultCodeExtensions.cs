@@ -10,7 +10,8 @@ public static class LegalityCheckResultCodeExtensions
 {
     extension(LegalityCheckResultCode code)
     {
-        public bool IsArgument => code is < FirstWithMove and >= FirstWithArgument;
+        public bool IsArgument => code is < FirstWithTwoArguments and >= FirstWithArgument;
+        public bool IsArgument2 => code is < FirstWithMove and >= FirstWithTwoArguments;
         public bool IsMove => code is < FirstWithItem and >= FirstWithMove;
         public bool IsItem => code is < FirstWithLanguage and >= FirstWithItem;
         public bool IsLanguage => code is < FirstWithMemory and >= FirstWithLanguage;
@@ -54,6 +55,8 @@ public static class LegalityCheckResultCodeExtensions
             BallSpecies => localization.BallSpecies,
             BallSpeciesPass => localization.BallSpeciesPass,
             BallUnavailable => localization.BallUnavailable,
+            BallG4Sinnoh => localization.BallG4Sinnoh,
+            BallG4Johto => localization.BallG4Johto,
 
             // Contest
             ContestZero => localization.ContestZero,

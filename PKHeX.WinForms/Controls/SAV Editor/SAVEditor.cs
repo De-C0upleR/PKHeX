@@ -85,7 +85,10 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         SL_Party.Setup(M);
 
         if (Application.IsDarkModeEnabled)
+        {
             WinFormsUtil.InvertToolStripIcons(Tab_Box.ContextMenuStrip.Items);
+            WinFormsUtil.InvertToolStripIcons(B_PopoutBox.ContextMenuStrip!.Items);
+        }
 
         SL_Extra.ViewIndex = -2;
         menu = new ContextMenuSAV { Manager = M };
@@ -111,6 +114,16 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         GB_Daycare.Click += (_, _) => SwitchDaycare();
         FLP_SAVtools.Scroll += WinFormsUtil.PanelScroll;
         SortMenu.Opening += (_, x) => x.Cancel = !tabBoxMulti.GetTabRect(tabBoxMulti.SelectedIndex).Contains(PointToClient(MousePosition));
+        Tab_Box.SizeChanged += Tab_Box_SizeChanged;
+    }
+
+    private void Tab_Box_SizeChanged(object? sender, EventArgs e)
+    {
+        if (!SAV.HasBox)
+            return;
+        Box.HorizontallyCenter(Tab_Box);
+        BoxSearchAlignButton();
+        BoxPopoutAlignButton();
     }
 
     private void InitializeDragDrop(Control pb)
@@ -204,7 +217,16 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             ResetParty(); // lots of slots change, just update
 
         var pb = SlotPictureBoxes[index];
-        SlotUtil.UpdateSlot(pb, slot, pk, SAV, Box.FlagIllegal, type);
+        var flags = GetFlags(pk);
+        SlotUtil.UpdateSlot(pb, slot, pk, SAV, flags, type);
+    }
+
+    private SlotVisibilityType GetFlags(PKM pk, bool ignoreLegality = false)
+    {
+        var result = SlotVisibilityType.None;
+        if (FlagIllegal && !ignoreLegality)
+            result |= SlotVisibilityType.CheckLegalityIndicate;
+        return result;
     }
 
     public ISlotInfo GetSlotData(PictureBox view)
@@ -242,8 +264,9 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         {
             var info = SL_Extra.GetSlotData(i);
             var pb = slots[i];
-            var showLegality = info is not SlotInfoMisc { HideLegality: true };
-            SlotUtil.UpdateSlot(pb, info, info.Read(SAV), SAV, Box.FlagIllegal && showLegality);
+            var pk = info.Read(SAV);
+            var hideLegality = info is SlotInfoMisc { HideLegality: true };
+            SlotUtil.UpdateSlot(pb, info, pk, SAV, GetFlags(pk, hideLegality));
         }
     }
 
@@ -295,9 +318,8 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             {
                 L_SlotOccupied[i].Text = $"{i + 1}: ✘";
                 var pb = UpdateSlot(i);
-                var current = pb.Image;
-                if (current is not null)
-                    pb.Image = ImageUtil.ChangeOpacity(current, 0.6);
+                if (pb.Image is Bitmap current)
+                    pb.Image = ImageUtil.CopyChangeOpacity(current, 0.6);
             }
         }
 
@@ -370,7 +392,8 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
     {
         var info = GetSlotData(relIndex);
         var pb = SlotPictureBoxes[relIndex];
-        SlotUtil.UpdateSlot(pb, info, info.Read(SAV), SAV, Box.FlagIllegal);
+        var pk = info.Read(SAV);
+        SlotUtil.UpdateSlot(pb, info, pk, SAV, GetFlags(pk));
         return pb;
     }
 
@@ -471,15 +494,14 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             return;
         if (ModifierKeys == Keys.Shift)
         {
-            if (M.Boxes.Count > 1) // subview open
-            {
-                // close all subviews
-                for (int i = 1; i < M.Boxes.Count; i++)
-                    M.Boxes[i].ParentForm?.Close();
-            }
-            new SAV_BoxList(this, M).Show();
+            OpenBoxList();
             return;
         }
+        OpenBoxViewer();
+    }
+
+    private void OpenBoxViewer()
+    {
         if (M.Boxes.Count > 1) // subview open
         {
             var z = M.Boxes[1].ParentForm;
@@ -489,7 +511,22 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
             z.BringToFront();
             return;
         }
-        new SAV_BoxViewer(this, M, Box.CurrentBox).Show();
+        var form = new SAV_BoxViewer(this, M, Box.CurrentBox);
+        form.Owner = FindForm();
+        form.Show();
+    }
+
+    private void OpenBoxList()
+    {
+        if (M.Boxes.Count > 1) // subview open
+        {
+            // close all subviews
+            for (int i = M.Boxes.Count - 1; i >= 1; i--)
+                M.Boxes[i].ParentForm?.Close();
+        }
+
+        var form = new SAV_BoxList(this, M);
+        form.Show();
     }
 
     private void ClickClone(object sender, EventArgs e)
@@ -992,7 +1029,8 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         bool reload = SAV is IStorageCleanup b && b.FixStoragePreWrite();
         if (reload)
             ReloadSlots();
-        return WinFormsUtil.ExportSAVDialog(this, SAV, SAV.CurrentBox);
+        bool forceSaveAs = Main.Settings.Advanced.SaveExportForceSaveAs;
+        return WinFormsUtil.ExportSAVDialog(this, SAV, SAV.CurrentBox, forceSaveAs);
     }
 
     public bool ExportBackup()
@@ -1141,6 +1179,8 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         SetPKMBoxes(); // Reload all Entity picture boxes
 
         ToggleViewMisc(SAV);
+        BoxSearchAlignButton();
+        BoxPopoutAlignButton();
 
         FieldsLoaded = true;
         return WindowTranslationRequired;
@@ -1172,6 +1212,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
                     form?.Height += height - allowed;
                 }
             }
+            BoxSearchClear();
         }
         if (SAV.HasParty)
         {
@@ -1530,4 +1571,126 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         try { File.Delete(path); }
         catch (Exception ex) { Debug.WriteLine(ex.Message); }
     }
+
+    private void B_PopoutBox_Click(object sender, EventArgs e)
+    {
+        if (ModifierKeys == Keys.Shift)
+        {
+            OpenBoxList();
+            return;
+        }
+        if (ModifierKeys.HasFlag(Keys.Control))
+        {
+            OpenBoxViewer();
+            return;
+        }
+
+        // Otherwise, open the context menu and let the user decide which to open.
+        ShowContextMenuBelow(PopoutMenu, B_PopoutBox);
+    }
+
+    private void Menu_PopoutBoxSingle_Click(object? sender, EventArgs e) => OpenBoxViewer();
+
+    private void Menu_PopoutBoxAll_Click(object? sender, EventArgs e) => OpenBoxList();
+
+    private static void ShowContextMenuBelow(ToolStripDropDown menu, Control control) =>
+        menu.Show(control.PointToScreen(new Point(0, control.Height)));
+
+    private EntitySearchSetup? _searchForm;
+    private Func<PKM, bool>? _searchFilter;
+
+    private void B_SearchBox_Click(object sender, EventArgs e)
+    {
+        if (_searchForm is not null)
+        {
+            if (ModifierKeys == Keys.Alt)
+            {
+                _searchForm.ForceReset();
+                _searchForm.Hide();
+                return;
+            }
+            if (ModifierKeys.HasFlag(Keys.Shift))
+            {
+                BoxSearchSeek(reverse: ModifierKeys.HasFlag(Keys.Control));
+                return;
+            }
+        }
+        if (_searchForm is null || !_searchForm.IsSameSaveFile(SAV))
+            _searchForm = CreateSearcher(SAV, EditEnv.PKMEditor);
+
+        // Set the searcher Position immediately to the right of this parent form, and vertically aligned tops of forms.
+        var parent = FindForm();
+        if (parent is not null)
+        {
+            var location = parent.Location;
+            location.X += parent.Width;
+            _searchForm.StartPosition = FormStartPosition.Manual;
+            _searchForm.Location = location;
+            _searchForm.Owner = parent;
+        }
+
+        _searchForm.Show();
+        _searchForm.BringToFront();
+    }
+
+    private EntitySearchSetup CreateSearcher(SaveFile sav, IPKMView edit)
+    {
+        BoxSearchClear();
+        var result = new EntitySearchSetup();
+        result.Initialize(sav, edit);
+
+        result.ResetRequested += UpdateSearch;
+        result.SearchRequested += UpdateSearch;
+        result.SeekNext += SeekNext;
+        result.SeekPrevious += SeekPrevious;
+
+        return result;
+    }
+
+    private void SeekNext(object? sender, EventArgs e) => BoxSearchSeek();
+    private void SeekPrevious(object? sender, EventArgs e) => BoxSearchSeek(reverse: true);
+
+    private void UpdateSearch(object? sender, EventArgs e)
+    {
+        _searchFilter = _searchForm!.SearchFilter;
+        EditEnv.Slots.Publisher.UpdateFilter(_searchFilter);
+    }
+
+    private void BoxSearchClear()
+    {
+        _searchFilter = null;
+        EditEnv.Slots.Publisher.UpdateFilter(_searchFilter);
+        if (_searchForm is { } form)
+        {
+            form.ResetRequested -= UpdateSearch;
+            form.SearchRequested -= UpdateSearch;
+            form.Close(); // get rid of previous searcher if it exists
+        }
+        _searchForm = null;
+    }
+
+    private void BoxSearchAlignButton()
+    {
+        // Move the Search button so that it is vertically aligned to the navigation buttons, and right-edge aligned with the last picturebox in the grid.
+        var navButton = Box.B_BoxRight;
+        B_SearchBox.Top = Box.Top + navButton.Top;
+        B_SearchBox.Left = Box.Left + Box.BoxPokeGrid.Right - B_SearchBox.Width;
+    }
+
+    private void BoxPopoutAlignButton()
+    {
+        // Move the Search button so that it is vertically aligned to the navigation buttons, and left-edge aligned with the first picturebox in the grid.
+        var navButton = Box.B_BoxRight;
+        B_PopoutBox.Top = Box.Top + navButton.Top;
+        B_PopoutBox.Left = Box.Left + Box.BoxPokeGrid.Left;
+    }
+
+    private void BoxSearchSeek(bool reverse = false)
+    {
+        if (_searchFilter is null)
+            return;
+        Box.SeekNext(_searchFilter, reverse);
+    }
+
+    public void ApplyNewFilter(Func<PKM, bool>? filter, bool reload = true) => Box.ApplySearchFilter(filter, reload);
 }

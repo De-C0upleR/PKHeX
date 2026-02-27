@@ -166,7 +166,8 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         set => field = Stats.HaX = value;
     }
 
-    private byte[] LastData = [];
+    private byte[] LastData { get; set; } = [];
+    public void NotifyWasExported(PKM pk) => LastData = pk.Data.ToArray();
 
     public PKM Data => Entity;
     public PKM Entity { get; private set; } = null!;
@@ -233,7 +234,6 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         }
 
         var pk = GetPKMfromFields();
-        LastData = pk.Data.ToArray();
         return pk.Clone();
     }
 
@@ -355,7 +355,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         SetMarkings();
         UpdateLegality();
         UpdateSprite();
-        LastData = PreparePKM().Data.ToArray();
+        NotifyWasExported(PreparePKM());
         RefreshFontWarningButton();
     }
 
@@ -557,14 +557,14 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
         static void SetMarkingImage(PictureBox pb, Color color, bool active)
         {
-            var img = pb.InitialImage;
-            if (img is not Bitmap bmp)
-                throw new Exception();
+            var bmp = pb.InitialImage as Bitmap;
+            ArgumentNullException.ThrowIfNull(bmp);
+
             if (color.ToArgb() != Color.Black.ToArgb())
-                img = ImageUtil.ChangeAllColorTo(bmp, color);
+                bmp = ImageUtil.CopyChangeAllColorTo(bmp, color);
             if (!active)
-                img = ImageUtil.ChangeOpacity(img, 1/8f);
-            pb.Image = img;
+                bmp = ImageUtil.CopyChangeOpacity(bmp, 1/8f);
+            pb.Image = bmp;
         }
     }
 
@@ -755,7 +755,7 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
     private void UpdateHandlerSelected(byte handler)
     {
         Entity.CurrentHandler = handler;
-        UpadteHandlingTrainerBackground(Entity.CurrentHandler);
+        UpdateHandlingTrainerBackground(Entity.CurrentHandler);
         ReloadToFriendshipTextBox(Entity);
     }
 
@@ -1324,6 +1324,9 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         {
             ValidateChildren(); // hacky validation forcing
         }
+
+        CB_MetLocation.SelectionLength = 0;
+        CB_EggLocation.SelectionLength = 0;
     }
 
     private void UpdateExtraByteValue(object sender, EventArgs e)
@@ -1962,8 +1965,9 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
         if (ModifierKeys == Keys.Shift)
         {
             m.ClearMoveShopFlags();
-            if (Legality.EncounterMatch is IMasteryInitialMoveShop8 enc)
-                enc.SetInitialMastery(Entity);
+            var enc = Legality.EncounterMatch;
+            if (enc is IMasteryInitialMoveShop8 shop)
+                shop.SetInitialMastery(Entity, enc);
             m.SetMoveShopFlags(Entity);
             UpdateLegality();
             return;
@@ -2198,10 +2202,11 @@ public sealed partial class PKMEditor : UserControl, IMainEditor
 
     private static Bitmap GetMarkSprite(PictureBox p, bool opaque, double trans = 0.175)
     {
-        var img = p.InitialImage;
-        if (img is not Bitmap sprite)
-            throw new Exception();
-        return opaque ? sprite : ImageUtil.ChangeOpacity(sprite, trans);
+        var bmp = p.InitialImage as Bitmap;
+        ArgumentNullException.ThrowIfNull(bmp);
+        if (!opaque)
+            bmp = ImageUtil.CopyChangeOpacity(bmp, trans);
+        return bmp;
     }
 
     private void ClickVersionMarking(object sender, EventArgs e)

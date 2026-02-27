@@ -387,11 +387,12 @@ public static class WinFormsUtil
     /// <param name="c">Control to anchor dialog to.</param>
     /// <param name="sav"><see cref="SaveFile"/> to be saved.</param>
     /// <param name="currentBox">Box the player will be greeted with when accessing the PC in-game.</param>
+    /// <param name="forceSaveAs">Whether to force the Save As dialog even if the file exists.</param>
     /// <returns>True if the file was saved.</returns>
-    public static bool ExportSAVDialog(Control c, SaveFile sav, int currentBox = 0)
+    public static bool ExportSAVDialog(Control c, SaveFile sav, int currentBox = 0, bool forceSaveAs = false)
     {
         // Try to request an overwrite first; if they defer, do the save file dialog.
-        if (!sav.Metadata.IsBackup && File.Exists(sav.Metadata.FilePath))
+        if (!forceSaveAs && !sav.Metadata.IsBackup && File.Exists(sav.Metadata.FilePath))
         {
             var exist = sav.Metadata.FilePath;
             var task = c.FindForm()!.RequestOverwrite(exist);
@@ -562,13 +563,13 @@ public static class WinFormsUtil
             if (o is not ToolStripMenuItem item)
                 continue;
             InvertToolStripIcons(item.DropDownItems);
-            if (item.Image is not { } x)
+            if (item.Image is not Bitmap x)
                 continue;
             item.Image = BlackToWhite(x);
         }
     }
 
-    public static Bitmap BlackToWhite(Image img) => Drawing.ImageUtil.ChangeAllColorTo(img, Color.White);
+    public static Bitmap BlackToWhite(Bitmap bmp) => Drawing.ImageUtil.CopyChangeAllColorTo(bmp, Color.White);
 
     // SystemColor equivalents for dark mode support
     public static Color ColorWarn => Application.IsDarkModeEnabled ? Color.OrangeRed : Color.Red;
