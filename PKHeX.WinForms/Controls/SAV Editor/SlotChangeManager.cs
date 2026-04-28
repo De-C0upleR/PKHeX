@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Media;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using PKHeX.Core;
@@ -142,7 +141,7 @@ public sealed class SlotChangeManager(SAVEditor se) : IDisposable
         var info = GetSlotInfo(pb);
         if (!info.CanWriteTo() || Drag.Info.Source?.CanWriteTo() == false)
         {
-            SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
             e.Effect = DragDropEffects.Copy;
             Drag.Reset();
             return;
@@ -205,7 +204,12 @@ public sealed class SlotChangeManager(SAVEditor se) : IDisposable
         string newfile = FileUtil.GetPKMTempFileName(pk, encrypt);
         try
         {
-            var data = encrypt ? pk.EncryptedPartyData : pk.DecryptedPartyData;
+            pk.ForcePartyData();
+            Span<byte> data = stackalloc byte[pk.SIZE_PARTY];
+            if (!encrypt)
+                pk.WriteDecryptedDataParty(data);
+            else
+                pk.WriteEncryptedDataParty(data);
             external = TryMakeDragDropPKM(pb, data, newfile);
         }
         // Tons of things can happen with drag & drop; don't try to handle things, just indicate failure.

@@ -138,16 +138,11 @@ public enum LegalityCheckResultCode : ushort
     FormArgumentValid,
     FormArgumentInvalid,
     FormBattle,
-    FormEternal,
-    FormEternalInvalid,
     FormInvalidGame,
     FormInvalidNature,
     FormItemMatches,
     FormItemInvalid,
     FormParty,
-    FormPikachuCosplay,
-    FormPikachuCosplayInvalid,
-    FormPikachuEventInvalid,
     FormValid,
     FormVivillon,
     FormVivillonEventPre,
@@ -393,7 +388,6 @@ public enum LegalityCheckResultCode : ushort
     ContestSheenLEQ_0,
     EggFMetLevel_0,
     EffortUntrainedCap_0,
-    EvoTradeReqOutsider_0,
     FormArgumentLEQ_0,
     FormArgumentGEQ_0,
     FormInvalidExpect_0,
@@ -479,6 +473,7 @@ public enum LegalityCheckResultCode : ushort
     EncTradeShouldHaveEvolvedToSpecies_0, // species
     MoveEvoFCombination_0, // species
     HintEvolvesToSpecies_0, // species
+    EvoTradeReqOutsider_01, // species, species
 
     RibbonMarkingInvalid_0, // ribbon
     RibbonMarkingMissing_0, // ribbon

@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Media;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using PKHeX.Core;
@@ -475,7 +474,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         if (!string.IsNullOrWhiteSpace(message))
             WinFormsUtil.Alert(message + $" ({count})");
         else
-            SystemSounds.Asterisk.Play();
+            WinFormsUtil.Asterisk();
     }
 
     private void ClickBoxDouble(object sender, MouseEventArgs e)
@@ -969,7 +968,7 @@ public partial class SAVEditor : UserControl, ISlotViewer<PictureBox>, ISaveFile
         var localization = LegalityLocalizationSet.GetLocalization(Main.CurrentLanguage);
         var msg = bulk.Report(localization);
         WinFormsUtil.SetClipboardText(msg);
-        SystemSounds.Asterisk.Play();
+        WinFormsUtil.Asterisk();
     }
 
     // File I/O
